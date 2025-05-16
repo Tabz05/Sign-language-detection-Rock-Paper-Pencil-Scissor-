@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Real-Time Hand Gesture Recognition</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align:center; margin-top: 30px; }
+        video, canvas { border: 2px solid black; }
+        #prediction { font-size: 2rem; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Real-Time Hand Gesture Recognition</h1>
+
+    <video id="video" width="640" height="480" autoplay muted></video>
+    <canvas id="canvas" width="640" height="480" style="display:none;"></canvas>
+
+    <div id="prediction">Loading...</div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const predictionDiv = document.getElementById('prediction');
+
+        // Access webcam
+        async function setupCamera() {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            video.srcObject = stream;
+            return new Promise((resolve) => {
+                video.onloadedmetadata = () => {
+                    resolve();
+                };
+            });
+        }
+
+        async function sendFrame() {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const dataUrl = canvas.toDataURL('image/jpeg');
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({image: dataUrl})
+                });
+                const result = await response.json();
+                predictionDiv.textContent = 'Prediction: ' + result.prediction;
+            } catch (err) {
+                predictionDiv.textContent = 'Error: ' + err.message;
+            }
+        }
+
+        async function main() {
+            await setupCamera();
+            predictionDiv.textContent = 'Camera started.';
+
+            // Send a frame every 200 ms (~5 FPS)
+            setInterval(sendFrame, 200);
+        }
+
+        main();
+    </script>
+</body>
+</html>
